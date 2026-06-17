@@ -1,0 +1,9 @@
+{
+  "version": "v5.193",
+  "base": "v5.192",
+  "changes": [
+    "mini badge made much smaller and moved lower-left",
+    "pattern changed from faint scattered dots to clearer constructive/destructive contour-like tracks"
+  ],
+  "note": "For users still seeing old UI, clear site cache/service worker."
+}

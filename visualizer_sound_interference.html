@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MelodyLab v5.192 - Sound Interference (การแทรกสอดของเสียง)</title>
+  <title>MelodyLab v5.193 - Sound Interference (การแทรกสอดของเสียง)</title>
   <meta name="description" content="MelodyLab ห้องทดลองเสียงและเก็บข้อมูล ด้วยมือถือ">
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="style.css">
-  <meta name="melodylab-build-version" content="v5.192-double-slit-interference-badge-pattern-fix">
+  <meta name="melodylab-build-version" content="v5.193-double-slit-interference-clear-pattern">
   <style>
     .interferenceReadoutBar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px}
     .interferenceReadoutBar>div{border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.48);border-radius:14px;padding:9px 11px;min-height:56px}
@@ -240,26 +240,46 @@ function outgoing(ctx,s,spacing,phase,p,w,h,colorPrefix){
 
 function interferencePattern(ctx,wallX,screenX,top,bottom,s1,s2,p,pxPerM){
   ctx.save();
-  const startX=wallX+42,endX=screenX-28;
-  for(let x=startX;x<=endX;x+=20){
-    for(let y=top+12;y<=bottom-12;y+=20){
-      const I=relativeIntensity(x,y,s1,s2,p,pxPerM);
-      if(I>=0.88){
-        const alpha=(I-.88)/.12*.22+.10;
-        ctx.fillStyle=`rgba(34,197,94,${alpha.toFixed(3)})`;
-        ctx.beginPath();ctx.arc(x,y,4.2,0,Math.PI*2);ctx.fill();
-      }else if(I<=0.12){
-        const alpha=(.12-I)/.12*.20+.09;
-        ctx.fillStyle=`rgba(236,72,153,${alpha.toFixed(3)})`;
-        ctx.beginPath();ctx.arc(x,y,4.0,0,Math.PI*2);ctx.fill();
+  const startX=wallX+38,endX=screenX-34,xStep=8,yStep=4,tolerance=18;
+  const buildCenters=(mode)=>{
+    let prev=[];
+    for(let x=startX;x<=endX;x+=xStep){
+      const centers=[];
+      let runStart=null;
+      for(let y=top+10;y<=bottom-10;y+=yStep){
+        const I=relativeIntensity(x,y,s1,s2,p,pxPerM);
+        const hit=mode==='constructive' ? I>=0.92 : I<=0.08;
+        if(hit && runStart===null) runStart=y;
+        if((!hit || y>=bottom-10) && runStart!==null){
+          const runEnd=hit && y>=bottom-10 ? y : y-yStep;
+          centers.push((runStart+runEnd)/2);
+          runStart=null;
+        }
       }
+      for(const yc of centers){
+        let best=null,bestDist=1e9,bestIdx=-1;
+        for(let i=0;i<prev.length;i++){
+          const d=Math.abs(prev[i]-yc);
+          if(d<bestDist){bestDist=d;best=prev[i];bestIdx=i;}
+        }
+        if(best!==null && bestDist<=tolerance){
+          const stroke=mode==='constructive' ? `rgba(34,197,94,0.34)` : `rgba(236,72,153,0.32)`;
+          ctx.strokeStyle=stroke;ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(x-xStep,best);ctx.lineTo(x,yc);ctx.stroke();
+          prev.splice(bestIdx,1);
+        }
+        ctx.fillStyle=mode==='constructive' ? 'rgba(34,197,94,0.80)' : 'rgba(236,72,153,0.78)';
+        ctx.beginPath();ctx.arc(x,yc,2.8,0,Math.PI*2);ctx.fill();
+      }
+      prev=centers.slice();
     }
-  }
-  ctx.fillStyle='rgba(15,23,42,.62)';
-  rr(ctx,screenX-130,top+6,110,36,12,true,false);
-  ctx.fillStyle='rgba(34,197,94,.96)';ctx.beginPath();ctx.arc(screenX-116,top+18,4.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(236,72,153,.96)';ctx.beginPath();ctx.arc(screenX-116,top+31,4.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(226,232,240,.92)';ctx.font='700 10px system-ui,sans-serif';ctx.fillText('เสริมกัน',screenX-106,top+21);ctx.fillText('หักล้างกัน',screenX-106,top+34);
+  };
+  buildCenters('constructive');
+  buildCenters('destructive');
+  ctx.fillStyle='rgba(15,23,42,.66)';
+  rr(ctx,screenX-132,top+6,112,36,12,true,false);
+  ctx.fillStyle='rgba(34,197,94,.98)';ctx.beginPath();ctx.arc(screenX-118,top+18,4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(236,72,153,.98)';ctx.beginPath();ctx.arc(screenX-118,top+31,4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(226,232,240,.94)';ctx.font='700 10px system-ui,sans-serif';ctx.fillText('เสริมกัน',screenX-108,top+21);ctx.fillText('หักล้างกัน',screenX-108,top+34);
   ctx.restore();
 }
 function axis(ctx,cy,w){ctx.save();ctx.strokeStyle='rgba(226,232,240,.26)';ctx.setLineDash([5,7]);ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(w*.16,cy);ctx.lineTo(w*.87,cy);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
@@ -278,7 +298,7 @@ function receiver(ctx,x,top,bottom,s1,s2,p,pxPerM){
   for(let y=top;y<=bottom;y+=3){const I=relativeIntensity(x,y,s1,s2,p,pxPerM),alpha=clamp(I*p.A,.04,.92),wid=8+I*28;ctx.fillStyle=`rgba(167,139,250,${alpha})`;rr(ctx,x+7,y-1.15,wid,2.3,2,true,false);}ctx.restore();
 }
 function relativeIntensity(x,y,s1,s2,p,pxPerM){const r1=Math.hypot(x-s1.x,y-s1.y)/pxPerM,r2=Math.hypot(x-s2.x,y-s2.y)/pxPerM,delta=2*Math.PI*(r2-r1)/p.lambda+p.phase;return (1+Math.cos(delta))/2;}
-function miniBadge(ctx,w,h,p){ctx.save();const x=18,y=h-44,bw=Math.min(w-36,388),bh=28;ctx.fillStyle='rgba(2,6,23,.46)';ctx.strokeStyle='rgba(148,163,184,.18)';rr(ctx,x,y,bw,bh,12,true,true);ctx.fillStyle='#e0f2fe';ctx.font='700 10.5px system-ui,sans-serif';ctx.fillText(`λ=${fmt(p.lambda,2)} m   d/λ=${fmt(p.ratio,2)}   Δφ=${Math.round(p.phaseDeg)}°`,x+12,y+18);ctx.restore();}
+function miniBadge(ctx,w,h,p){ctx.save();const x=18,y=h-30,bw=228,bh=18;ctx.fillStyle='rgba(2,6,23,.30)';ctx.strokeStyle='rgba(148,163,184,.12)';rr(ctx,x,y,bw,bh,10,true,true);ctx.fillStyle='#dbeafe';ctx.font='700 9.5px system-ui,sans-serif';ctx.fillText(`λ=${fmt(p.lambda,2)} m   d/λ=${fmt(p.ratio,2)}`,x+10,y+12);ctx.restore();}
 function arrow(ctx,x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();const a=Math.atan2(y2-y1,x2-x1),h=8;ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));ctx.closePath();ctx.fill();}
 function line(ctx,x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
 function rr(ctx,x,y,w,h,r,fill=true,stroke=false){const q=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);ctx.beginPath();ctx.moveTo(x+q,y);ctx.arcTo(x+w,y,x+w,y+h,q);ctx.arcTo(x+w,y+h,x,y+h,q);ctx.arcTo(x,y+h,x,y,q);ctx.arcTo(x,y,x+w,y,q);ctx.closePath();if(fill)ctx.fill();if(stroke)ctx.stroke();}
